@@ -38,6 +38,16 @@ function escapeHTML(str) {
   return div.innerHTML;
 }
 
+function formatDateTime(isoString) {
+  return new Date(isoString).toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 openBtn.addEventListener('click', () => {
   form.classList.toggle('open');
   if (form.classList.contains('open')) {
@@ -59,10 +69,11 @@ clearSearchBtn.addEventListener('click', () => {
   renderPosts();
 });
 
-// Auto-resize comment textarea up to max-height
 commentInput.addEventListener('input', () => {
-  commentInput.style.height = 'auto';
-  commentInput.style.height = `${Math.min(commentInput.scrollHeight, 120)}px`;
+  commentInput.style.height = '36px';
+  if (commentInput.scrollHeight > 36) {
+    commentInput.style.height = `${Math.min(commentInput.scrollHeight, 76)}px`;
+  }
 });
 
 async function loadPosts() {
@@ -80,7 +91,6 @@ async function loadPosts() {
     return;
   }
 
-  // Sort each post's comments oldest-to-newest for reading the thread
   posts = (data || []).map((post) => ({
     ...post,
     comments: (post.comments || []).sort(
@@ -90,7 +100,6 @@ async function loadPosts() {
 
   renderPosts();
 
-  // Keep the open thread modal synced if a post is currently open
   if (activePostId) {
     const updatedPost = posts.find((p) => p.id === activePostId);
     if (updatedPost) renderModal(updatedPost);
@@ -137,33 +146,21 @@ function renderPosts() {
 
   feed.innerHTML = matches
     .map(({ post, matchedOnlyInComments, matchingCommentCount }) => {
-      const time = new Date(post.created_at).toLocaleString();
+      const time = formatDateTime(post.created_at);
       const count = post.comments.length;
       const commentLabel = count === 1 ? '1 comment' : `${count} comments`;
       const commentMatchNote = matchedOnlyInComments
         ? `<p class="comment-match-note">Matched in ${matchingCommentCount} ${matchingCommentCount === 1 ? 'comment' : 'comments'} — tap to view</p>`
         : '';
 
-      return `
-        <article class="post-card" data-post-id="${post.id}" role="button" tabindex="0">
-          <div class="post-content">${escapeHTML(post.content)}</div>
-          ${commentMatchNote}
-          <div class="post-footer">
-            <span class="post-time">${time}</span>
-            <span class="comment-badge">💬 ${commentLabel}</span>
-          </div>
-        </article>
-      `;
+      return `<article class="post-card" data-post-id="${post.id}" role="button" tabindex="0"><div class="post-content">${escapeHTML(post.content)}</div>${commentMatchNote}<div class="post-footer"><span class="post-time">${time}</span><span class="comment-badge">💬 ${commentLabel}</span></div></article>`;
     })
     .join('');
 }
 
 function renderModal(post) {
-  const time = new Date(post.created_at).toLocaleString();
-  modalPostBody.innerHTML = `
-    <div>${escapeHTML(post.content)}</div>
-    <span class="modal-post-time">${time}</span>
-  `;
+  const time = formatDateTime(post.created_at);
+  modalPostBody.innerHTML = `<div class="modal-post-text">${escapeHTML(post.content)}</div><span class="modal-post-time">${time}</span>`;
 
   const count = post.comments.length;
   commentsHeading.textContent = `Comments (${count})`;
@@ -175,16 +172,8 @@ function renderModal(post) {
 
   commentsList.innerHTML = post.comments
     .map((comment) => {
-      const commentTime = new Date(comment.created_at).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      return `
-        <div class="comment-item">
-          <div>${escapeHTML(comment.content)}</div>
-          <span class="comment-time">${commentTime}</span>
-        </div>
-      `;
+      const commentDateTime = formatDateTime(comment.created_at);
+      return `<div class="comment-item"><div class="comment-text">${escapeHTML(comment.content)}</div><span class="comment-time">${commentDateTime}</span></div>`;
     })
     .join('');
 }
@@ -208,7 +197,6 @@ function closePostModal() {
   document.body.classList.remove('modal-open');
 }
 
-// Swipe down on drag bar to dismiss sheet
 let startY = 0;
 let currentDeltaY = 0;
 
@@ -249,7 +237,6 @@ feed.addEventListener('keydown', (e) => {
 closeModalBtn.addEventListener('click', closePostModal);
 backdrop.addEventListener('click', closePostModal);
 
-// Create a new post in Supabase
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const content = input.value.trim();
@@ -272,7 +259,6 @@ form.addEventListener('submit', async (e) => {
   await loadPosts();
 });
 
-// Add a comment to the active post in Supabase
 commentForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const content = commentInput.value.trim();
@@ -291,7 +277,7 @@ commentForm.addEventListener('submit', async (e) => {
   }
 
   commentInput.value = '';
-  commentInput.style.height = 'auto';
+  commentInput.style.height = '36px';
   await loadPosts();
 
   modalScrollArea.scrollTo({
