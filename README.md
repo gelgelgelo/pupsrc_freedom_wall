@@ -1,1 +1,0 @@
-# PUPSRC Freedom Wall

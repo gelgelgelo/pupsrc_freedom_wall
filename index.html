@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PUPSRC Freedom Wall</title>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>PUPSRC Freedom Wall</h1>
+      <button id="open-post-btn" type="button">Create a post</button>
+    </header>
+
+    <form id="post-form">
+      <textarea id="post-input" maxlength="500" placeholder="Share what's on your mind..." required></textarea>
+      <button id="submit-post-btn" type="submit">Post to Wall</button>
+    </form>
+
+    <section id="feed" aria-live="polite"></section>
+  </div>
+
+  <!-- Comment Modal / Bottom Sheet -->
+  <div id="post-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 id="modal-title">Post Thread</h2>
+        <button id="close-modal-btn" type="button" aria-label="Close thread">✕</button>
+      </div>
+
+      <div id="modal-post-body" class="modal-post-body"></div>
+
+      <div class="comments-section">
+        <h3 id="comments-heading">Comments (0)</h3>
+        <div id="comments-list" class="comments-list"></div>
+      </div>
+
+      <form id="comment-form" class="comment-form">
+        <input
+          id="comment-input"
+          type="text"
+          maxlength="300"
+          placeholder="Write a comment..."
+          required
+        />
+        <button id="submit-comment-btn" type="submit">Reply</button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
