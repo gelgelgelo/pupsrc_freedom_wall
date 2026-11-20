@@ -12,6 +12,7 @@ const input = document.getElementById('post-input');
 const submitPostBtn = document.getElementById('submit-post-btn');
 const searchInput = document.getElementById('search-input');
 const clearSearchBtn = document.getElementById('clear-search-btn');
+const sortTabs = document.querySelectorAll('.sort-tab');
 const feed = document.getElementById('feed');
 
 // Modal elements
@@ -31,6 +32,7 @@ const submitCommentBtn = document.getElementById('submit-comment-btn');
 let posts = [];
 let activePostId = null;
 let searchQuery = '';
+let currentSort = 'latest';
 let hasHandledInitialDeepLink = false;
 
 function escapeHTML(str) {
@@ -126,6 +128,22 @@ clearSearchBtn.addEventListener('click', () => {
   clearSearchBtn.hidden = true;
   searchInput.focus();
   renderPosts();
+});
+
+sortTabs.forEach((tab) => {
+  tab.addEventListener('click', () => {
+    const selectedSort = tab.dataset.sort;
+    if (!selectedSort || selectedSort === currentSort) return;
+
+    currentSort = selectedSort;
+    sortTabs.forEach((btn) => {
+      const isActive = btn.dataset.sort === currentSort;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', String(isActive));
+    });
+
+    renderPosts();
+  });
 });
 
 commentInput.addEventListener('input', () => {
@@ -243,7 +261,15 @@ function renderPosts() {
     return;
   }
 
-  feed.innerHTML = matches
+  const sortedMatches = [...matches].sort((a, b) => {
+    if (currentSort === 'popular') {
+      const commentDiff = b.post.comments.length - a.post.comments.length;
+      if (commentDiff !== 0) return commentDiff;
+    }
+    return new Date(b.post.created_at) - new Date(a.post.created_at);
+  });
+
+  feed.innerHTML = sortedMatches
     .map(({ post, matchedOnlyInComments, matchingCommentCount }) => {
       const time = formatDateTime(post.created_at);
       const count = post.comments.length;

@@ -169,6 +169,36 @@ input[type="search"]:focus {
   color: var(--pup-maroon);
 }
 
+/* Sort tabs */
+.sort-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: #efe7e7;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.sort-tab {
+  min-height: 34px;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  border-radius: 7px;
+}
+
+.sort-tab:hover {
+  color: var(--pup-maroon);
+}
+
+.sort-tab.active {
+  background: var(--pup-maroon);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(128, 0, 0, 0.18);
+}
+
 .empty-state {
   text-align: center;
   color: var(--text-muted);
