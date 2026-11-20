@@ -1,11 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PUPSRC Freedom Wall</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PUPSRC Freedom Wall</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <h1>PUPSRC Freedom Wall</h1>
+  <div class="app">
+    <header>
+      <h1>PUPSRC Freedom Wall</h1>
+      <button id="open-post-btn" type="button">Create a post</button>
+    </header>
+
+    <form id="post-form">
+      <textarea id="post-input" maxlength="500" placeholder="Share what's on your mind..." required></textarea>
+      <button id="submit-post-btn" type="submit">Post to Wall</button>
+    </form>
+
+    <section id="feed" aria-live="polite"></section>
+  </div>
+
+  <script src="js/app.js" defer></script>
 </body>
 </html>
