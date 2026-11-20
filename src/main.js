@@ -16,6 +16,9 @@ const feed = document.getElementById('feed');
 
 // Modal elements
 const modal = document.getElementById('post-modal');
+const modalSheet = modal.querySelector('.modal-sheet');
+const modalDragBar = document.getElementById('modal-drag-bar');
+const modalScrollArea = document.getElementById('modal-scroll-area');
 const backdrop = document.getElementById('modal-backdrop');
 const closeModalBtn = document.getElementById('close-modal-btn');
 const modalPostBody = document.getElementById('modal-post-body');
@@ -54,6 +57,12 @@ clearSearchBtn.addEventListener('click', () => {
   clearSearchBtn.hidden = true;
   searchInput.focus();
   renderPosts();
+});
+
+// Auto-resize comment textarea up to max-height
+commentInput.addEventListener('input', () => {
+  commentInput.style.height = 'auto';
+  commentInput.style.height = `${Math.min(commentInput.scrollHeight, 120)}px`;
 });
 
 async function loadPosts() {
@@ -186,6 +195,7 @@ function openPostModal(postId) {
 
   activePostId = postId;
   renderModal(post);
+  modalScrollArea.scrollTop = 0;
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
   document.body.classList.add('modal-open');
@@ -197,6 +207,29 @@ function closePostModal() {
   modal.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('modal-open');
 }
+
+// Swipe down on drag bar to dismiss sheet
+let startY = 0;
+let currentDeltaY = 0;
+
+modalDragBar.addEventListener('touchstart', (e) => {
+  startY = e.touches[0].clientY;
+  modalSheet.style.transition = 'none';
+}, { passive: true });
+
+modalDragBar.addEventListener('touchmove', (e) => {
+  currentDeltaY = Math.max(0, e.touches[0].clientY - startY);
+  modalSheet.style.transform = `translateY(${currentDeltaY}px)`;
+}, { passive: true });
+
+modalDragBar.addEventListener('touchend', () => {
+  modalSheet.style.transition = '';
+  modalSheet.style.transform = '';
+  if (currentDeltaY > 90) {
+    closePostModal();
+  }
+  currentDeltaY = 0;
+});
 
 feed.addEventListener('click', (e) => {
   const card = e.target.closest('.post-card');
@@ -258,7 +291,13 @@ commentForm.addEventListener('submit', async (e) => {
   }
 
   commentInput.value = '';
+  commentInput.style.height = 'auto';
   await loadPosts();
+
+  modalScrollArea.scrollTo({
+    top: modalScrollArea.scrollHeight,
+    behavior: 'smooth'
+  });
 });
 
 loadPosts();

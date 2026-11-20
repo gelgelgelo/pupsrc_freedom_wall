@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>PUPSRC Freedom Wall</title>
 </head>
 <body>
@@ -34,27 +34,37 @@
   <div id="post-modal" class="modal" aria-hidden="true">
     <div class="modal-backdrop" id="modal-backdrop"></div>
     <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-drag-bar" id="modal-drag-bar">
+        <span class="drag-pill"></span>
+      </div>
+
       <div class="modal-header">
         <h2 id="modal-title">Post Thread</h2>
         <button id="close-modal-btn" type="button" aria-label="Close thread">✕</button>
       </div>
 
-      <div id="modal-post-body" class="modal-post-body"></div>
+      <div class="modal-scroll-area" id="modal-scroll-area">
+        <div id="modal-post-body" class="modal-post-body"></div>
 
-      <div class="comments-section">
-        <h3 id="comments-heading">Comments (0)</h3>
-        <div id="comments-list" class="comments-list"></div>
+        <div class="comments-section">
+          <div class="comments-header-row">
+            <h3 id="comments-heading">Comments (0)</h3>
+          </div>
+          <div id="comments-list" class="comments-list"></div>
+        </div>
       </div>
 
       <form id="comment-form" class="comment-form">
-        <input
+        <textarea
           id="comment-input"
-          type="text"
+          rows="1"
           maxlength="300"
-          placeholder="Write a comment..."
+          placeholder="Add a comment..."
           required
-        />
-        <button id="submit-comment-btn" type="submit">Reply</button>
+        ></textarea>
+        <button id="submit-comment-btn" type="submit" aria-label="Send comment">
+          Reply
+        </button>
       </form>
     </div>
   </div>
