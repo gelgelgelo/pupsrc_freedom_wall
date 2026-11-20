@@ -27,6 +27,25 @@
       <button id="clear-search-btn" type="button" aria-label="Clear search" hidden>✕</button>
     </div>
 
+    <!-- Developer Pinned Message (Below Search Bar) -->
+    <aside id="pinned-message" class="pinned-message" aria-label="Pinned developer announcement">
+      <div class="pinned-header">
+        <div class="pinned-header-left">
+          <span class="pinned-badge">📌 Announcement</span>
+          <h2 class="pinned-title">Looking for maintainer/developer</h2>
+        </div>
+        <button
+          id="close-pinned-btn"
+          type="button"
+          aria-label="Dismiss pinned message"
+          onclick="document.getElementById('pinned-message').remove()"
+        >✕</button>
+      </div>
+      <p class="pinned-body">
+        if interested email me at <b>s3wvwy@@wearehackerone.com</b>
+      </p>
+    </aside>
+
     <section id="feed" aria-live="polite"></section>
   </div>
 
