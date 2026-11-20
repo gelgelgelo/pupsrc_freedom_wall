@@ -15,6 +15,12 @@ const clearSearchBtn = document.getElementById('clear-search-btn');
 const sortTabs = document.querySelectorAll('.sort-tab');
 const feed = document.getElementById('feed');
 
+// Pinned announcement elements
+const pinnedMessage = document.getElementById('pinned-message');
+const pinnedTitle = document.getElementById('pinned-title');
+const pinnedBody = document.getElementById('pinned-body');
+const closePinnedBtn = document.getElementById('close-pinned-btn');
+
 // Modal elements
 const modal = document.getElementById('post-modal');
 const modalSheet = modal.querySelector('.modal-sheet');
@@ -109,6 +115,10 @@ async function handleSharePost(postId, buttonEl) {
   }, 1800);
 }
 
+closePinnedBtn.addEventListener('click', () => {
+  pinnedMessage.hidden = true;
+});
+
 openBtn.addEventListener('click', () => {
   form.classList.toggle('open');
   if (form.classList.contains('open')) {
@@ -152,6 +162,33 @@ commentInput.addEventListener('input', () => {
     commentInput.style.height = `${Math.min(commentInput.scrollHeight, 76)}px`;
   }
 });
+
+async function loadAnnouncement() {
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('id, title, body, created_at')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  console.log('Announcement query result:', { data, error });
+
+  if (error) {
+    console.error('Error loading announcement:', error);
+    pinnedMessage.hidden = true;
+    return;
+  }
+
+  if (!data) {
+    pinnedMessage.hidden = true;
+    return;
+  }
+
+  pinnedTitle.textContent = data.title ?? '';
+  pinnedBody.textContent = data.body ?? '';
+  pinnedMessage.hidden = false;
+}
 
 async function openSharedPostFromUrl() {
   if (hasHandledInitialDeepLink) return;
@@ -424,4 +461,5 @@ commentForm.addEventListener('submit', async (e) => {
   });
 });
 
+loadAnnouncement();
 loadPosts();

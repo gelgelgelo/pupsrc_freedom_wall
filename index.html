@@ -45,22 +45,19 @@
     </div>
 
     <!-- Developer Pinned Message (Below Search Bar) -->
-    <aside id="pinned-message" class="pinned-message" aria-label="Pinned developer announcement">
+    <aside id="pinned-message" class="pinned-message" aria-label="Pinned developer announcement" hidden>
       <div class="pinned-header">
         <div class="pinned-header-left">
-          <span class="pinned-badge">📌 Announcement</span>
-          <h2 class="pinned-title">Looking for maintainer/developer</h2>
+          <span class="pinned-badge">📌 pinned</span>
+          <h2 id="pinned-title" class="pinned-title"></h2>
         </div>
         <button
           id="close-pinned-btn"
           type="button"
           aria-label="Dismiss pinned message"
-          onclick="document.getElementById('pinned-message').remove()"
         >✕</button>
       </div>
-      <p class="pinned-body">
-        if interested email me at <b>s3wvwy@wearehackerone.com</b>
-      </p>
+      <p id="pinned-body" class="pinned-body"></p>
     </aside>
 
     <section id="feed" aria-live="polite"></section>
