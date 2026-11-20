@@ -401,7 +401,6 @@ input[type="search"]:focus {
   -webkit-overflow-scrolling: touch;
 }
 
-/* No white-space: pre-wrap on the outer container! */
 .modal-post-body {
   padding: 12px 14px;
   background: #fffdfb;
@@ -445,7 +444,6 @@ input[type="search"]:focus {
   gap: 6px;
 }
 
-/* No white-space: pre-wrap on the outer container! */
 .comment-item {
   background: var(--bg-warm);
   color: var(--text-dark);

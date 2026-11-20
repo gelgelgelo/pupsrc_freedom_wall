@@ -71,7 +71,6 @@ async function copyTextToClipboard(text) {
     return;
   }
 
-  // Fallback for older browsers or non-secure contexts
   const textarea = document.createElement('textarea');
   textarea.value = text;
   textarea.setAttribute('readonly', '');
@@ -143,14 +142,12 @@ async function openSharedPostFromUrl() {
   const sharedPostId = params.get('post');
   if (!sharedPostId) return;
 
-  // Check loaded posts first
   const existing = posts.find((p) => p.id === sharedPostId);
   if (existing) {
     openPostModal(existing.id, { syncUrl: false });
     return;
   }
 
-  // Fetch directly if older than the initial 50 posts
   const { data, error } = await supabase
     .from('posts')
     .select('id, content, created_at, comments(id, content, created_at)')
