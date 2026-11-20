@@ -31,6 +31,7 @@ const submitCommentBtn = document.getElementById('submit-comment-btn');
 let posts = [];
 let activePostId = null;
 let searchQuery = '';
+let hasHandledInitialDeepLink = false;
 
 function escapeHTML(str) {
   const div = document.createElement('div');
@@ -46,6 +47,64 @@ function formatDateTime(isoString) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function getPostShareUrl(postId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('post', postId);
+  return url.toString();
+}
+
+function setPostQueryParam(postId) {
+  const url = new URL(window.location.href);
+  if (postId) {
+    url.searchParams.set('post', postId);
+  } else {
+    url.searchParams.delete('post');
+  }
+  window.history.replaceState({}, '', url.toString());
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  // Fallback for older browsers or non-secure contexts
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const ok = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  if (!ok) {
+    throw new Error('Clipboard copy failed');
+  }
+}
+
+async function handleSharePost(postId, buttonEl) {
+  const shareUrl = getPostShareUrl(postId);
+  const originalLabel = buttonEl.textContent;
+
+  try {
+    await copyTextToClipboard(shareUrl);
+    buttonEl.textContent = '✓ Copied!';
+    buttonEl.classList.add('copied');
+  } catch (err) {
+    console.error('Failed to copy link:', err);
+    window.prompt('Copy this post link:', shareUrl);
+    return;
+  }
+
+  clearTimeout(buttonEl._copyTimer);
+  buttonEl._copyTimer = setTimeout(() => {
+    buttonEl.textContent = originalLabel;
+    buttonEl.classList.remove('copied');
+  }, 1800);
 }
 
 openBtn.addEventListener('click', () => {
@@ -76,6 +135,45 @@ commentInput.addEventListener('input', () => {
   }
 });
 
+async function openSharedPostFromUrl() {
+  if (hasHandledInitialDeepLink) return;
+  hasHandledInitialDeepLink = true;
+
+  const params = new URLSearchParams(window.location.search);
+  const sharedPostId = params.get('post');
+  if (!sharedPostId) return;
+
+  // Check loaded posts first
+  const existing = posts.find((p) => p.id === sharedPostId);
+  if (existing) {
+    openPostModal(existing.id, { syncUrl: false });
+    return;
+  }
+
+  // Fetch directly if older than the initial 50 posts
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id, content, created_at, comments(id, content, created_at)')
+    .eq('id', sharedPostId)
+    .single();
+
+  if (error || !data) {
+    console.warn('Shared post not found or unavailable:', error);
+    return;
+  }
+
+  const normalizedPost = {
+    ...data,
+    comments: (data.comments || []).sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    )
+  };
+
+  posts = [normalizedPost, ...posts];
+  renderPosts();
+  openPostModal(normalizedPost.id, { syncUrl: false });
+}
+
 async function loadPosts() {
   feed.innerHTML = '<p>Loading posts...</p>';
 
@@ -99,6 +197,7 @@ async function loadPosts() {
   }));
 
   renderPosts();
+  await openSharedPostFromUrl();
 
   if (activePostId) {
     const updatedPost = posts.find((p) => p.id === activePostId);
@@ -153,7 +252,7 @@ function renderPosts() {
         ? `<p class="comment-match-note">Matched in ${matchingCommentCount} ${matchingCommentCount === 1 ? 'comment' : 'comments'} — tap to view</p>`
         : '';
 
-      return `<article class="post-card" data-post-id="${post.id}" role="button" tabindex="0"><div class="post-content">${escapeHTML(post.content)}</div>${commentMatchNote}<div class="post-footer"><span class="post-time">${time}</span><span class="comment-badge">💬 ${commentLabel}</span></div></article>`;
+      return `<article class="post-card" data-post-id="${escapeHTML(post.id)}" role="button" tabindex="0"><div class="post-content">${escapeHTML(post.content)}</div>${commentMatchNote}<div class="post-footer"><span class="post-time">${time}</span><div class="post-actions"><button type="button" class="share-btn" data-share-id="${escapeHTML(post.id)}" aria-label="Copy link to post">🔗 Share</button><span class="comment-badge">💬 ${commentLabel}</span></div></div></article>`;
     })
     .join('');
 }
@@ -178,11 +277,14 @@ function renderModal(post) {
     .join('');
 }
 
-function openPostModal(postId) {
+function openPostModal(postId, { syncUrl = true } = {}) {
   const post = posts.find((p) => p.id === postId);
   if (!post) return;
 
   activePostId = postId;
+  if (syncUrl) {
+    setPostQueryParam(postId);
+  }
   renderModal(post);
   modalScrollArea.scrollTop = 0;
   modal.classList.add('open');
@@ -192,6 +294,7 @@ function openPostModal(postId) {
 
 function closePostModal() {
   activePostId = null;
+  setPostQueryParam(null);
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('modal-open');
@@ -220,12 +323,21 @@ modalDragBar.addEventListener('touchend', () => {
 });
 
 feed.addEventListener('click', (e) => {
+  const shareBtn = e.target.closest('.share-btn');
+  if (shareBtn) {
+    e.stopPropagation();
+    handleSharePost(shareBtn.dataset.shareId, shareBtn);
+    return;
+  }
+
   const card = e.target.closest('.post-card');
   if (!card) return;
   openPostModal(card.dataset.postId);
 });
 
 feed.addEventListener('keydown', (e) => {
+  if (e.target.closest('.share-btn')) return;
+
   if (e.key === 'Enter' || e.key === ' ') {
     const card = e.target.closest('.post-card');
     if (!card) return;
