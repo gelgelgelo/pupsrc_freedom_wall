@@ -354,3 +354,7 @@ input[type="search"]:focus {
   color: white;
   white-space: nowrap;
 }
+
+#nl-badge-frame {
+  display: none !important;
+}
