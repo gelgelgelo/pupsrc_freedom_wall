@@ -10,6 +10,8 @@ const openBtn = document.getElementById('open-post-btn');
 const form = document.getElementById('post-form');
 const input = document.getElementById('post-input');
 const submitPostBtn = document.getElementById('submit-post-btn');
+const searchInput = document.getElementById('search-input');
+const clearSearchBtn = document.getElementById('clear-search-btn');
 const feed = document.getElementById('feed');
 
 // Modal elements
@@ -25,6 +27,7 @@ const submitCommentBtn = document.getElementById('submit-comment-btn');
 
 let posts = [];
 let activePostId = null;
+let searchQuery = '';
 
 function escapeHTML(str) {
   const div = document.createElement('div');
@@ -37,6 +40,20 @@ openBtn.addEventListener('click', () => {
   if (form.classList.contains('open')) {
     input.focus();
   }
+});
+
+searchInput.addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  clearSearchBtn.hidden = searchQuery.length === 0;
+  renderPosts();
+});
+
+clearSearchBtn.addEventListener('click', () => {
+  searchQuery = '';
+  searchInput.value = '';
+  clearSearchBtn.hidden = true;
+  searchInput.focus();
+  renderPosts();
 });
 
 async function loadPosts() {
@@ -73,19 +90,55 @@ async function loadPosts() {
 
 function renderPosts() {
   if (!posts.length) {
-    feed.innerHTML = '<p>No posts yet. Be the first to post.</p>';
+    feed.innerHTML = '<p class="empty-state">No posts yet. Be the first to post.</p>';
     return;
   }
 
-  feed.innerHTML = posts
-    .map((post) => {
+  const query = searchQuery.trim().toLowerCase();
+
+  const matches = query
+    ? posts
+        .map((post) => {
+          const postMatches = post.content.toLowerCase().includes(query);
+          const matchingComments = (post.comments || []).filter((comment) =>
+            comment.content.toLowerCase().includes(query)
+          );
+
+          if (!postMatches && matchingComments.length === 0) {
+            return null;
+          }
+
+          return {
+            post,
+            matchedOnlyInComments: !postMatches && matchingComments.length > 0,
+            matchingCommentCount: matchingComments.length
+          };
+        })
+        .filter(Boolean)
+    : posts.map((post) => ({
+        post,
+        matchedOnlyInComments: false,
+        matchingCommentCount: 0
+      }));
+
+  if (!matches.length) {
+    feed.innerHTML = `<p class="empty-state">No posts or comments matching "${escapeHTML(searchQuery.trim())}".</p>`;
+    return;
+  }
+
+  feed.innerHTML = matches
+    .map(({ post, matchedOnlyInComments, matchingCommentCount }) => {
       const time = new Date(post.created_at).toLocaleString();
       const count = post.comments.length;
       const commentLabel = count === 1 ? '1 comment' : `${count} comments`;
+      const commentMatchNote = matchedOnlyInComments
+        ? `<p class="comment-match-note">Matched in ${matchingCommentCount} ${matchingCommentCount === 1 ? 'comment' : 'comments'} — tap to view</p>`
+        : '';
 
       return `
         <article class="post-card" data-post-id="${post.id}" role="button" tabindex="0">
           <div class="post-content">${escapeHTML(post.content)}</div>
+          ${commentMatchNote}
           <div class="post-footer">
             <span class="post-time">${time}</span>
             <span class="comment-badge">💬 ${commentLabel}</span>
