@@ -98,6 +98,20 @@ async function handleSharePost(postId, buttonEl) {
   const shareUrl = getPostShareUrl(postId);
   const originalLabel = buttonEl.textContent;
 
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: document.title,
+        url: shareUrl
+      });
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        return;
+      }
+    }
+  }
+
   try {
     await copyTextToClipboard(shareUrl);
     buttonEl.textContent = '✓ Copied!';
