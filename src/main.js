@@ -57,6 +57,14 @@ function truncateSnippet(text, maxLen = 65) {
   return `${clean.slice(0, maxLen - 1)}…`;
 }
 
+function getLatestCommentTimestamp(post) {
+  const comments = post.comments || [];
+  if (!comments.length) return null;
+  const lastComment = comments[comments.length - 1];
+  const ts = new Date(lastComment.created_at).getTime();
+  return Number.isNaN(ts) ? null : ts;
+}
+
 function setReplyTarget(comment) {
   replyingToComment = comment;
   replyBannerPreview.textContent = `"${truncateSnippet(comment.content)}"`;
@@ -371,6 +379,15 @@ function renderPosts() {
     if (currentSort === 'popular') {
       const commentDiff = b.post.comments.length - a.post.comments.length;
       if (commentDiff !== 0) return commentDiff;
+    } else if (currentSort === 'recent') {
+      const aLatest = getLatestCommentTimestamp(a.post);
+      const bLatest = getLatestCommentTimestamp(b.post);
+
+      if (aLatest !== null && bLatest !== null && bLatest !== aLatest) {
+        return bLatest - aLatest;
+      }
+      if (aLatest !== null && bLatest === null) return -1;
+      if (aLatest === null && bLatest !== null) return 1;
     }
     return new Date(b.post.created_at) - new Date(a.post.created_at);
   });
