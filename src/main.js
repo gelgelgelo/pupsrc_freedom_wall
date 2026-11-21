@@ -31,12 +31,16 @@ const closeModalBtn = document.getElementById('close-modal-btn');
 const modalPostBody = document.getElementById('modal-post-body');
 const commentsHeading = document.getElementById('comments-heading');
 const commentsList = document.getElementById('comments-list');
+const replyBanner = document.getElementById('reply-banner');
+const replyBannerPreview = document.getElementById('reply-banner-preview');
+const cancelReplyBtn = document.getElementById('cancel-reply-btn');
 const commentForm = document.getElementById('comment-form');
 const commentInput = document.getElementById('comment-input');
 const submitCommentBtn = document.getElementById('submit-comment-btn');
 
 let posts = [];
 let activePostId = null;
+let replyingToComment = null;
 let searchQuery = '';
 let currentSort = 'latest';
 let hasHandledInitialDeepLink = false;
@@ -45,6 +49,41 @@ function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function truncateSnippet(text, maxLen = 65) {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  if (clean.length <= maxLen) return clean;
+  return `${clean.slice(0, maxLen - 1)}…`;
+}
+
+function setReplyTarget(comment) {
+  replyingToComment = comment;
+  replyBannerPreview.textContent = `"${truncateSnippet(comment.content)}"`;
+  replyBanner.hidden = false;
+  commentInput.placeholder = 'Write your reply...';
+  commentInput.focus();
+}
+
+function clearReplyTarget() {
+  replyingToComment = null;
+  replyBanner.hidden = true;
+  replyBannerPreview.textContent = '';
+  commentInput.placeholder = 'Write a comment...';
+}
+
+function formatCommentContentHTML(content) {
+  const raw = String(content || '');
+  const match = raw.match(/^> ([^\n]+)\n([\s\S]*)$/);
+  if (!match) {
+    return `<div class="comment-text">${escapeHTML(raw)}</div>`;
+  }
+
+  const [, quotedLine, replyBody] = match;
+  return `
+    <div class="comment-quote">${escapeHTML(quotedLine)}</div>
+    <div class="comment-text">${escapeHTML(replyBody)}</div>
+  `;
 }
 
 function formatDateTime(isoString) {
@@ -174,6 +213,22 @@ commentInput.addEventListener('input', () => {
   commentInput.style.height = '36px';
   if (commentInput.scrollHeight > 36) {
     commentInput.style.height = `${Math.min(commentInput.scrollHeight, 76)}px`;
+  }
+});
+
+cancelReplyBtn.addEventListener('click', () => {
+  clearReplyTarget();
+  commentInput.focus();
+});
+
+commentsList.addEventListener('click', (e) => {
+  const replyBtn = e.target.closest('.comment-reply-btn');
+  if (!replyBtn || !activePostId) return;
+
+  const post = posts.find((p) => p.id === activePostId);
+  const targetComment = post?.comments.find((c) => c.id === replyBtn.dataset.replyId);
+  if (targetComment) {
+    setReplyTarget(targetComment);
   }
 });
 
@@ -349,7 +404,15 @@ function renderModal(post) {
   commentsList.innerHTML = post.comments
     .map((comment) => {
       const commentDateTime = formatDateTime(comment.created_at);
-      return `<div class="comment-item"><div class="comment-text">${escapeHTML(comment.content)}</div><span class="comment-time">${commentDateTime}</span></div>`;
+      return `
+        <div class="comment-item" data-comment-id="${escapeHTML(comment.id)}">
+          ${formatCommentContentHTML(comment.content)}
+          <div class="comment-meta">
+            <span class="comment-time">${commentDateTime}</span>
+            <button type="button" class="comment-reply-btn" data-reply-id="${escapeHTML(comment.id)}">↩ Reply</button>
+          </div>
+        </div>
+      `;
     })
     .join('');
 }
@@ -359,6 +422,7 @@ function openPostModal(postId, { syncUrl = true } = {}) {
   if (!post) return;
 
   activePostId = postId;
+  clearReplyTarget();
   if (syncUrl) {
     setPostQueryParam(postId);
   }
@@ -371,6 +435,7 @@ function openPostModal(postId, { syncUrl = true } = {}) {
 
 function closePostModal() {
   activePostId = null;
+  clearReplyTarget();
   setPostQueryParam(null);
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
@@ -450,8 +515,13 @@ form.addEventListener('submit', async (e) => {
 
 commentForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const content = commentInput.value.trim();
-  if (!content || !activePostId) return;
+  const rawText = commentInput.value.trim();
+  if (!rawText || !activePostId) return;
+
+  const quotePrefix = replyingToComment
+    ? `> ${truncateSnippet(replyingToComment.content, 75)}\n`
+    : '';
+  const content = `${quotePrefix}${rawText}`.slice(0, 300);
 
   submitCommentBtn.disabled = true;
   const { error } = await supabase
@@ -467,6 +537,7 @@ commentForm.addEventListener('submit', async (e) => {
 
   commentInput.value = '';
   commentInput.style.height = '36px';
+  clearReplyTarget();
   await loadPosts();
 
   modalScrollArea.scrollTo({

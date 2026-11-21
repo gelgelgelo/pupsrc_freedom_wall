@@ -484,6 +484,19 @@ input[type="search"]:focus {
   border-left: 2px solid var(--pup-maroon);
 }
 
+.comment-quote {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(128, 0, 0, 0.05);
+  border-left: 2px solid var(--pup-gold-deep);
+  padding: 3px 7px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .comment-text {
   color: var(--text-dark);
   font-size: 0.88rem;
@@ -492,18 +505,91 @@ input[type="search"]:focus {
   word-break: break-word;
 }
 
-.comment-time {
-  display: block;
+.comment-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-top: 4px;
+}
+
+.comment-time {
   font-size: 0.72rem;
   font-weight: 500;
   color: var(--pup-maroon);
+}
+
+.comment-reply-btn {
+  min-height: 22px;
+  padding: 1px 7px;
+  background: transparent;
+  color: var(--pup-maroon);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 6px;
+}
+
+.comment-reply-btn:hover {
+  background: rgba(128, 0, 0, 0.08);
 }
 
 .empty-comments {
   font-size: 0.85rem;
   color: var(--text-muted);
   padding: 6px 0;
+}
+
+/* Reply Banner */
+.reply-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #fffbeb;
+  border-top: 1px solid #f5dfa0;
+  border-left: 3px solid var(--pup-gold-deep);
+  font-size: 0.78rem;
+  color: var(--text-dark);
+  flex-shrink: 0;
+}
+
+.reply-banner[hidden] {
+  display: none;
+}
+
+.reply-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.reply-banner-label {
+  font-weight: 700;
+  color: var(--pup-maroon);
+  white-space: nowrap;
+}
+
+.reply-banner-preview {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#cancel-reply-btn {
+  min-height: 24px;
+  padding: 2px 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+#cancel-reply-btn:hover {
+  background: rgba(128, 0, 0, 0.08);
+  color: var(--pup-maroon);
 }
 
 /* Compact Reply Bar */
