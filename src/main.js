@@ -51,6 +51,10 @@ function escapeHTML(str) {
   return div.innerHTML;
 }
 
+function renderAdminBadge(isAdmin) {
+  return isAdmin ? '<span class="admin-badge" title="Verified Admin">✓ Admin</span>' : '';
+}
+
 function stripLegacyQuote(text) {
   const raw = String(text || '');
   const match = raw.match(/^> [^\n]+\n([\s\S]*)$/);
@@ -294,7 +298,7 @@ async function openSharedPostFromUrl() {
   // Fetch directly if older than the initial 50 posts
   const { data, error } = await supabase
     .from('posts')
-    .select('id, content, created_at, comments(id, parent_id, content, created_at)')
+    .select('id, content, admin, created_at, comments(id, parent_id, content, admin, created_at)')
     .eq('id', sharedPostId)
     .single();
 
@@ -305,9 +309,10 @@ async function openSharedPostFromUrl() {
 
   const normalizedPost = {
     ...data,
-    comments: (data.comments || []).sort(
-      (a, b) => new Date(a.created_at) - new Date(b.created_at)
-    )
+    admin: Boolean(data.admin),
+    comments: (data.comments || [])
+      .map((c) => ({ ...c, admin: Boolean(c.admin) }))
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
   };
 
   posts = [normalizedPost, ...posts];
@@ -320,7 +325,7 @@ async function loadPosts() {
 
   const { data, error } = await supabase
     .from('posts')
-    .select('id, content, created_at, comments(id, parent_id, content, created_at)')
+    .select('id, content, admin, created_at, comments(id, parent_id, content, admin, created_at)')
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -332,9 +337,10 @@ async function loadPosts() {
 
   posts = (data || []).map((post) => ({
     ...post,
-    comments: (post.comments || []).sort(
-      (a, b) => new Date(a.created_at) - new Date(b.created_at)
-    )
+    admin: Boolean(post.admin),
+    comments: (post.comments || [])
+      .map((c) => ({ ...c, admin: Boolean(c.admin) }))
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
   }));
 
   renderPosts();
@@ -410,7 +416,7 @@ function renderPosts() {
         ? `<p class="comment-match-note">Matched in ${matchingCommentCount} ${matchingCommentCount === 1 ? 'comment' : 'comments'} — tap to view</p>`
         : '';
 
-      return `<article class="post-card" data-post-id="${escapeHTML(post.id)}" role="button" tabindex="0"><div class="post-content">${escapeHTML(post.content)}</div>${commentMatchNote}<div class="post-footer"><span class="post-time">${time}</span><div class="post-actions"><button type="button" class="share-btn" data-share-id="${escapeHTML(post.id)}" aria-label="Copy link to post">🔗 Share</button><span class="comment-badge">💬 ${commentLabel}</span></div></div></article>`;
+      return `<article class="post-card" data-post-id="${escapeHTML(post.id)}" role="button" tabindex="0"><div class="post-content">${escapeHTML(post.content)}${renderAdminBadge(post.admin)}</div>${commentMatchNote}<div class="post-footer"><span class="post-time">${time}</span><div class="post-actions"><button type="button" class="share-btn" data-share-id="${escapeHTML(post.id)}" aria-label="Copy link to post">🔗 Share</button><span class="comment-badge">💬 ${commentLabel}</span></div></div></article>`;
     })
     .join('');
 }
@@ -468,7 +474,7 @@ function renderCommentCardHTML(comment, { isReply = false, directParent = null }
       ${replyingTag}
       ${formatCommentContentHTML(comment.content)}
       <div class="comment-meta">
-        <span class="comment-time">${commentDateTime}</span>
+        <span class="comment-time">${commentDateTime}${renderAdminBadge(comment.admin)}</span>
         <button type="button" class="comment-reply-btn" data-reply-id="${escapeHTML(comment.id)}">↩ Reply</button>
       </div>
     </div>
@@ -477,7 +483,7 @@ function renderCommentCardHTML(comment, { isReply = false, directParent = null }
 
 function renderModal(post) {
   const time = formatDateTime(post.created_at);
-  modalPostBody.innerHTML = `<div class="modal-post-text">${escapeHTML(post.content)}</div><span class="modal-post-time">${time}</span>`;
+  modalPostBody.innerHTML = `<div class="modal-post-text">${escapeHTML(post.content)}${renderAdminBadge(post.admin)}</div><span class="modal-post-time">${time}</span>`;
 
   const count = post.comments.length;
   commentsHeading.textContent = `Comments (${count})`;

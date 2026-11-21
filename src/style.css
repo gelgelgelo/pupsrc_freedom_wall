@@ -692,6 +692,22 @@ input[type="search"]:focus {
   color: #ffffff;
 }
 
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--pup-maroon);
+  color: var(--pup-gold);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
 #nl-badge-frame {
   display: none !important;
 }
