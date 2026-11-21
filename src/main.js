@@ -51,6 +51,10 @@ function escapeHTML(str) {
   return div.innerHTML;
 }
 
+function containsHtmlTags(text) {
+  return /[<>]/.test(String(text || ''));
+}
+
 function renderAdminBadge(isAdmin) {
   return isAdmin ? '<span class="admin-badge" title="Verified Admin">✓ Admin</span>' : '';
 }
@@ -594,8 +598,13 @@ backdrop.addEventListener('click', closePostModal);
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const content = input.value.trim();
+  const content = input.value.trim().slice(0, 1000);
   if (!content) return;
+
+  if (containsHtmlTags(content)) {
+    alert('HTML tags or angle brackets (< >) are not allowed.');
+    return;
+  }
 
   submitPostBtn.disabled = true;
   const { error } = await supabase
@@ -618,6 +627,11 @@ commentForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const content = commentInput.value.trim().slice(0, 300);
   if (!content || !activePostId) return;
+
+  if (containsHtmlTags(content)) {
+    alert('HTML tags or angle brackets (< >) are not allowed.');
+    return;
+  }
 
   const targetCommentId = replyingToComment ? replyingToComment.id : null;
 
