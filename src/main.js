@@ -51,8 +51,14 @@ function escapeHTML(str) {
   return div.innerHTML;
 }
 
+function stripLegacyQuote(text) {
+  const raw = String(text || '');
+  const match = raw.match(/^> [^\n]+\n([\s\S]*)$/);
+  return match ? match[1] : raw;
+}
+
 function truncateSnippet(text, maxLen = 65) {
-  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  const clean = stripLegacyQuote(text).replace(/\s+/g, ' ').trim();
   if (clean.length <= maxLen) return clean;
   return `${clean.slice(0, maxLen - 1)}…`;
 }
@@ -60,9 +66,14 @@ function truncateSnippet(text, maxLen = 65) {
 function getLatestCommentTimestamp(post) {
   const comments = post.comments || [];
   if (!comments.length) return null;
-  const lastComment = comments[comments.length - 1];
-  const ts = new Date(lastComment.created_at).getTime();
-  return Number.isNaN(ts) ? null : ts;
+  let latest = null;
+  for (const comment of comments) {
+    const ts = new Date(comment.created_at).getTime();
+    if (!Number.isNaN(ts) && (latest === null || ts > latest)) {
+      latest = ts;
+    }
+  }
+  return latest;
 }
 
 function setReplyTarget(comment) {
@@ -249,8 +260,6 @@ async function loadAnnouncement() {
     .limit(1)
     .maybeSingle();
 
-  console.log('Announcement query result:', { data, error });
-
   if (error) {
     console.error('Error loading announcement:', error);
     pinnedMessage.hidden = true;
@@ -285,7 +294,7 @@ async function openSharedPostFromUrl() {
   // Fetch directly if older than the initial 50 posts
   const { data, error } = await supabase
     .from('posts')
-    .select('id, content, created_at, comments(id, content, created_at)')
+    .select('id, content, created_at, comments(id, parent_id, content, created_at)')
     .eq('id', sharedPostId)
     .single();
 
@@ -311,7 +320,7 @@ async function loadPosts() {
 
   const { data, error } = await supabase
     .from('posts')
-    .select('id, content, created_at, comments(id, content, created_at)')
+    .select('id, content, created_at, comments(id, parent_id, content, created_at)')
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -406,6 +415,66 @@ function renderPosts() {
     .join('');
 }
 
+function buildCommentThreads(comments) {
+  const byId = new Map(comments.map((c) => [c.id, c]));
+  const roots = [];
+  const repliesByRootId = new Map();
+
+  for (const comment of comments) {
+    if (!comment.parent_id || !byId.has(comment.parent_id)) {
+      roots.push(comment);
+      repliesByRootId.set(comment.id, []);
+    }
+  }
+
+  for (const comment of comments) {
+    if (!comment.parent_id || !byId.has(comment.parent_id)) continue;
+
+    // Walk up to the top-level root so mobile indentation stays max 2 levels deep
+    let cursor = byId.get(comment.parent_id);
+    const seen = new Set([comment.id]);
+    while (cursor && cursor.parent_id && byId.has(cursor.parent_id) && !seen.has(cursor.id)) {
+      seen.add(cursor.id);
+      cursor = byId.get(cursor.parent_id);
+    }
+
+    const rootId = cursor ? cursor.id : comment.parent_id;
+    if (!repliesByRootId.has(rootId)) {
+      repliesByRootId.set(rootId, []);
+    }
+
+    const directParent = byId.get(comment.parent_id);
+    repliesByRootId.get(rootId).push({
+      comment,
+      // Show a compact "↳ replying to ..." tag when replying to another nested reply
+      directParent: directParent && directParent.id !== rootId ? directParent : null
+    });
+  }
+
+  return roots.map((root) => ({
+    root,
+    replies: repliesByRootId.get(root.id) || []
+  }));
+}
+
+function renderCommentCardHTML(comment, { isReply = false, directParent = null } = {}) {
+  const commentDateTime = formatDateTime(comment.created_at);
+  const replyingTag = directParent
+    ? `<div class="comment-replying-tag">↳ Replying to "${escapeHTML(truncateSnippet(directParent.content, 48))}"</div>`
+    : '';
+
+  return `
+    <div class="comment-item${isReply ? ' is-reply' : ''}" data-comment-id="${escapeHTML(comment.id)}">
+      ${replyingTag}
+      ${formatCommentContentHTML(comment.content)}
+      <div class="comment-meta">
+        <span class="comment-time">${commentDateTime}</span>
+        <button type="button" class="comment-reply-btn" data-reply-id="${escapeHTML(comment.id)}">↩ Reply</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderModal(post) {
   const time = formatDateTime(post.created_at);
   modalPostBody.innerHTML = `<div class="modal-post-text">${escapeHTML(post.content)}</div><span class="modal-post-time">${time}</span>`;
@@ -418,16 +487,25 @@ function renderModal(post) {
     return;
   }
 
-  commentsList.innerHTML = post.comments
-    .map((comment) => {
-      const commentDateTime = formatDateTime(comment.created_at);
+  const threads = buildCommentThreads(post.comments);
+
+  commentsList.innerHTML = threads
+    .map(({ root, replies }) => {
+      const rootHTML = renderCommentCardHTML(root);
+      if (!replies.length) {
+        return `<div class="comment-thread">${rootHTML}</div>`;
+      }
+
+      const repliesHTML = replies
+        .map(({ comment, directParent }) =>
+          renderCommentCardHTML(comment, { isReply: true, directParent })
+        )
+        .join('');
+
       return `
-        <div class="comment-item" data-comment-id="${escapeHTML(comment.id)}">
-          ${formatCommentContentHTML(comment.content)}
-          <div class="comment-meta">
-            <span class="comment-time">${commentDateTime}</span>
-            <button type="button" class="comment-reply-btn" data-reply-id="${escapeHTML(comment.id)}">↩ Reply</button>
-          </div>
+        <div class="comment-thread">
+          ${rootHTML}
+          <div class="comment-replies">${repliesHTML}</div>
         </div>
       `;
     })
@@ -532,18 +610,15 @@ form.addEventListener('submit', async (e) => {
 
 commentForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const rawText = commentInput.value.trim();
-  if (!rawText || !activePostId) return;
+  const content = commentInput.value.trim().slice(0, 300);
+  if (!content || !activePostId) return;
 
-  const quotePrefix = replyingToComment
-    ? `> ${truncateSnippet(replyingToComment.content, 75)}\n`
-    : '';
-  const content = `${quotePrefix}${rawText}`.slice(0, 300);
+  const targetCommentId = replyingToComment ? replyingToComment.id : null;
 
   submitCommentBtn.disabled = true;
   const { error } = await supabase
     .from('comments')
-    .insert([{ post_id: activePostId, content }]);
+    .insert([{ post_id: activePostId, parent_id: targetCommentId, content }]);
   submitCommentBtn.disabled = false;
 
   if (error) {
@@ -556,6 +631,14 @@ commentForm.addEventListener('submit', async (e) => {
   commentInput.style.height = '36px';
   clearReplyTarget();
   await loadPosts();
+
+  if (targetCommentId) {
+    const targetEl = commentsList.querySelector(`[data-comment-id="${CSS.escape(targetCommentId)}"]`);
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
+  }
 
   modalScrollArea.scrollTo({
     top: modalScrollArea.scrollHeight,

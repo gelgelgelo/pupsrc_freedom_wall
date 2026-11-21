@@ -475,6 +475,22 @@ input[type="search"]:focus {
   gap: 6px;
 }
 
+/* Nested 2-level comment thread */
+.comment-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comment-replies {
+  margin-left: 14px;
+  padding-left: 10px;
+  border-left: 2px solid #e2cccc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* No white-space: pre-wrap on the outer container! */
 .comment-item {
   background: var(--bg-warm);
@@ -482,6 +498,21 @@ input[type="search"]:focus {
   padding: 8px 10px;
   border-radius: 8px;
   border-left: 2px solid var(--pup-maroon);
+}
+
+.comment-item.is-reply {
+  background: #fdf9f9;
+  border-left: 2px solid var(--pup-gold-deep);
+  padding: 7px 9px;
+}
+
+.comment-replying-tag {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .comment-quote {
