@@ -6,6 +6,8 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
 const openBtn = document.getElementById('open-post-btn');
 const form = document.getElementById('post-form');
 const input = document.getElementById('post-input');
@@ -44,6 +46,62 @@ let replyingToComment = null;
 let searchQuery = '';
 let currentSort = 'latest';
 let hasHandledInitialDeepLink = false;
+
+// Turnstile state
+let postTurnstileWidgetId = null;
+let commentTurnstileWidgetId = null;
+let postTurnstileToken = '';
+let commentTurnstileToken = '';
+
+function initTurnstileWidgets() {
+  if (!window.turnstile || !TURNSTILE_SITE_KEY) return;
+
+  const postContainer = document.getElementById('post-turnstile-container');
+  if (postContainer && postTurnstileWidgetId === null && form.classList.contains('open')) {
+    postTurnstileWidgetId = window.turnstile.render('#post-turnstile-container', {
+      sitekey: TURNSTILE_SITE_KEY,
+      callback: (token) => {
+        postTurnstileToken = token;
+      },
+      'expired-callback': () => {
+        postTurnstileToken = '';
+      },
+      'error-callback': () => {
+        postTurnstileToken = '';
+      }
+    });
+  }
+
+  const commentContainer = document.getElementById('comment-turnstile-container');
+  if (commentContainer && commentTurnstileWidgetId === null && modal.classList.contains('open')) {
+    commentTurnstileWidgetId = window.turnstile.render('#comment-turnstile-container', {
+      sitekey: TURNSTILE_SITE_KEY,
+      callback: (token) => {
+        commentTurnstileToken = token;
+      },
+      'expired-callback': () => {
+        commentTurnstileToken = '';
+      },
+      'error-callback': () => {
+        commentTurnstileToken = '';
+      }
+    });
+  }
+}
+
+function resetTurnstileWidget(type) {
+  if (type === 'post') {
+    postTurnstileToken = '';
+    if (window.turnstile && postTurnstileWidgetId !== null) {
+      window.turnstile.reset(postTurnstileWidgetId);
+    }
+  } else if (type === 'comment') {
+    commentTurnstileToken = '';
+    if (window.turnstile && commentTurnstileWidgetId !== null) {
+      window.turnstile.reset(commentTurnstileWidgetId);
+    }
+  }
+}
 
 function escapeHTML(str) {
   const div = document.createElement('div');
@@ -145,7 +203,6 @@ async function copyTextToClipboard(text) {
     return;
   }
 
-  // Fallback for older browsers or non-secure contexts
   const textarea = document.createElement('textarea');
   textarea.value = text;
   textarea.setAttribute('readonly', '');
@@ -202,6 +259,7 @@ closePinnedBtn.addEventListener('click', () => {
 openBtn.addEventListener('click', () => {
   form.classList.toggle('open');
   if (form.classList.contains('open')) {
+    initTurnstileWidgets();
     input.focus();
   }
 });
@@ -292,14 +350,12 @@ async function openSharedPostFromUrl() {
   const sharedPostId = params.get('post');
   if (!sharedPostId) return;
 
-  // Check loaded posts first
   const existing = posts.find((p) => p.id === sharedPostId);
   if (existing) {
     openPostModal(existing.id, { syncUrl: false });
     return;
   }
 
-  // Fetch directly if older than the initial 50 posts
   const { data, error } = await supabase
     .from('posts')
     .select('id, content, admin, created_at, comments(id, parent_id, content, admin, created_at)')
@@ -440,7 +496,6 @@ function buildCommentThreads(comments) {
   for (const comment of comments) {
     if (!comment.parent_id || !byId.has(comment.parent_id)) continue;
 
-    // Walk up to the top-level root so mobile indentation stays max 2 levels deep
     let cursor = byId.get(comment.parent_id);
     const seen = new Set([comment.id]);
     while (cursor && cursor.parent_id && byId.has(cursor.parent_id) && !seen.has(cursor.id)) {
@@ -456,7 +511,6 @@ function buildCommentThreads(comments) {
     const directParent = byId.get(comment.parent_id);
     repliesByRootId.get(rootId).push({
       comment,
-      // Show a compact "↳ replying to ..." tag when replying to another nested reply
       directParent: directParent && directParent.id !== rootId ? directParent : null
     });
   }
@@ -536,6 +590,7 @@ function openPostModal(postId, { syncUrl = true } = {}) {
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
   document.body.classList.add('modal-open');
+  initTurnstileWidgets();
 }
 
 function closePostModal() {
@@ -606,6 +661,11 @@ form.addEventListener('submit', async (e) => {
     return;
   }
 
+  if (TURNSTILE_SITE_KEY && !postTurnstileToken) {
+    alert('Please complete the verification check before posting.');
+    return;
+  }
+
   submitPostBtn.disabled = true;
   const { error } = await supabase
     .from('posts')
@@ -615,11 +675,13 @@ form.addEventListener('submit', async (e) => {
   if (error) {
     console.error('Error creating post:', error);
     alert('Could not publish your post. Please try again.');
+    resetTurnstileWidget('post');
     return;
   }
 
   input.value = '';
   form.classList.remove('open');
+  resetTurnstileWidget('post');
   await loadPosts();
 });
 
@@ -630,6 +692,11 @@ commentForm.addEventListener('submit', async (e) => {
 
   if (containsHtmlTags(content)) {
     alert('HTML tags or angle brackets (< >) are not allowed.');
+    return;
+  }
+
+  if (TURNSTILE_SITE_KEY && !commentTurnstileToken) {
+    alert('Please complete the verification check before replying.');
     return;
   }
 
@@ -644,12 +711,14 @@ commentForm.addEventListener('submit', async (e) => {
   if (error) {
     console.error('Error posting comment:', error);
     alert('Could not post your comment. Please try again.');
+    resetTurnstileWidget('comment');
     return;
   }
 
   commentInput.value = '';
   commentInput.style.height = '36px';
   clearReplyTarget();
+  resetTurnstileWidget('comment');
   await loadPosts();
 
   if (targetCommentId) {
